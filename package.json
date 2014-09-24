@@ -8,11 +8,6 @@
     "url": "https://github.com/aheller/grunt-bowercopy.git"
   },
   "bugs": "https://github.com/aheller/grunt-bowercopy/issues",
-  "author": {
-    "name": "Timmy Willison",
-    "email": "timmywillisn@gmail.com",
-    "url": "http://timmywillison.com"
-  },
   "keywords": [
     "gruntplugin",
     "bowercopy",
