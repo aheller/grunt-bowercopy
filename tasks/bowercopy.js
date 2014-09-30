@@ -171,10 +171,18 @@ module.exports = function (grunt) {
             fail.fatal('No main property specified by ' + path.normalize(src.replace(options.srcPrefix, '')));
         }
         var files = typeof meta.main === 'string' ? [meta.main] : meta.main;
+        var copyIgnore = meta.copyOptions && meta.copyOptions.ignore ? meta.copyOptions.ignore : [];
+        files = _.filter(files, function(file) {
+            if (copyIgnore.indexOf(file) > -1)
+                return false;
+            else
+                return file;
+        });
+
         return files.map(function(source) {
             return {
                 src: path.join(src, source),
-                dest: dest + (dest.charAt(dest-1)!=='/' ? '/' : '') + (source.indexOf('./') === 0 ? source.substr(2) : source)
+                dest: dest + (dest.charAt(dest - 1) !== '/' ? '/' : '') + (source.indexOf('./') === 0 ? source.substr(2) : source)
             };
         });
     }
