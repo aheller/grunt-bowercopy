@@ -180,7 +180,7 @@ module.exports = function (grunt) {
         });
 
         if(meta.copyOptions && meta.copyOptions.include)
-            files.concat(meta.copyOptions.include);
+            files = files.concat(meta.copyOptions.include);
 
         return files.map(function(source) {
             return {
