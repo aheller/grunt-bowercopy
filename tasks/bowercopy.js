@@ -179,6 +179,9 @@ module.exports = function (grunt) {
                 return file;
         });
 
+        if(meta.copyOptions && meta.copyOptions.include)
+            files.concat(meta.copyOptions.include);
+
         return files.map(function(source) {
             return {
                 src: path.join(src, source),
