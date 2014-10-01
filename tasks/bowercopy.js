@@ -184,7 +184,7 @@ module.exports = function (grunt) {
 
         return files.map(function(source) {
             return {
-                src: path.join(src, source),
+                src: path.join(src, source.replace('../','')),
                 dest: dest + (dest.charAt(dest - 1) !== '/' ? '/' : '') + (source.indexOf('./') === 0 ? source.substr(2) : source)
             };
         });
