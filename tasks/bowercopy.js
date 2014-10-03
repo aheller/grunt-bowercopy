@@ -35,7 +35,8 @@ module.exports = function (grunt) {
 
     // Regex
     var rperiod = /\./;
-    var rmain = /^([^:]+):main$/;
+    var rpragmaMain = /^([^:]+):main$/;
+    var rpragmaCopy = /^([^:]+):copy$/;
 
     /**
      * Retrieve the number of targets from the grunt config
@@ -97,7 +98,7 @@ module.exports = function (grunt) {
             }
             return !_.some(files, function(file) {
                 // Look for the module name somewhere in the source path
-                return path.join(sep, options.srcPrefix, file.src.replace(rmain, '$1'), sep)
+                return path.join(sep, options.srcPrefix, file.src.replace(rpragmaMain, '$1'), sep)
                     .indexOf(sep + module + sep) > -1;
             });
         });
@@ -165,13 +166,13 @@ module.exports = function (grunt) {
      * @param {string} dest
      * @returns {Array} Returns an array of file locations from the main property
      */
-    function getMain(src, options, dest) {
+    function getPragmaMainFiles(src, options, dest) {
         var meta = grunt.file.readJSON(path.join(src, '.bower.json'));
         if (!meta.main) {
             fail.fatal('No main property specified by ' + path.normalize(src.replace(options.srcPrefix, '')));
         }
         var files = typeof meta.main === 'string' ? [meta.main] : meta.main;
-        var copyIgnore = meta.copyOptions && meta.copyOptions.ignore ? meta.copyOptions.ignore : [];
+        var copyIgnore = meta.copy && meta.copy.ignore ? meta.copy.ignore : [];
         files = _.filter(files, function(file) {
             if (copyIgnore.indexOf(file) > -1)
                 return false;
@@ -179,8 +180,41 @@ module.exports = function (grunt) {
                 return file;
         });
 
-        if(meta.copyOptions && meta.copyOptions.include)
-            files = files.concat(meta.copyOptions.include);
+        if(meta.copy && meta.copy.include)
+            files = files.concat(meta.copy.include);
+
+        return files.map(function(source) {
+            return {
+                src: path.join(src, source.replace('../','')),
+                dest: dest + (dest.charAt(dest - 1) !== '/' ? '/' : '') + (source.indexOf('./') === 0 ? source.substr(2) : source)
+            };
+        });
+    }
+
+
+
+    /**
+     * Get the files for a particular package specified by copy pragma
+     * @param {string} src
+     * @param {Object} options
+     * @param {string} dest
+     * @returns {Array} Returns an array of file locations from the copy property
+     */
+    function getPragmaCopyFiles(src, options, dest) {
+        var meta = grunt.file.readJSON(path.join(src, '.bower.json'));
+        if (!meta.copy) {
+            fail.fatal('No copy property specified by ' + path.normalize(src.replace(options.srcPrefix, '')));
+        }
+
+        var files = [];
+        if(meta.copy.files) {
+            meta.copy.files.forEach(function (file) {
+                if (file.indexOf('*') !== -1 && options.srcPrefix)
+                    files = files.concat(glob.sync(file, {cwd: options.srcPrefix}));
+                else
+                    files.push(file);
+            });
+        }
 
         return files.map(function(source) {
             return {
@@ -215,10 +249,18 @@ module.exports = function (grunt) {
                 dest = path.join(options.destPrefix, dest);
             }
 
-            // Copy main files if :main is specified
-            var main = rmain.exec(src);
-            if (main) {
-                copied = copy(getMain(main[1], options, dest), options) || copied;
+            // Copy main files if :main pragma is specified
+            var pragmaMain = rpragmaMain.exec(src);
+            if (pragmaMain) {
+                copied = copy(getPragmaMainFiles(pragmaMain[1], options, dest), options) || copied;
+                return;
+            }
+
+            // Copy specific files if :copy pragma is specified
+            var pragmaCopy = rpragmaCopy.exec(src);
+            if (pragmaCopy) {
+                console.log(getPragmaCopyFiles(pragmaCopy[1], options, dest));
+//                copied = copy(getPragmaCopyFiles(pragmaCopy[1], options, dest), options) || copied;
                 return;
             }
 
