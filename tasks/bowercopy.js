@@ -209,8 +209,8 @@ module.exports = function (grunt) {
         var files = [];
         if(meta.copy.files) {
             meta.copy.files.forEach(function (file) {
-                if (file.indexOf('*') !== -1 && options.srcPrefix)
-                    files = files.concat(glob.sync(file, {cwd: options.srcPrefix}));
+                if (file.indexOf('*') !== -1)
+                    files = files.concat(glob.sync(file, {cwd: src}));
                 else
                     files.push(file);
             });
@@ -259,8 +259,7 @@ module.exports = function (grunt) {
             // Copy specific files if :copy pragma is specified
             var pragmaCopy = rpragmaCopy.exec(src);
             if (pragmaCopy) {
-                console.log(getPragmaCopyFiles(pragmaCopy[1], options, dest));
-//                copied = copy(getPragmaCopyFiles(pragmaCopy[1], options, dest), options) || copied;
+                copied = copy(getPragmaCopyFiles(pragmaCopy[1], options, dest), options) || copied;
                 return;
             }
 
