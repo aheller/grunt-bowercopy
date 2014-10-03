@@ -235,6 +235,10 @@ module.exports = function (grunt) {
         var copied = false;
         files.forEach(function(file) {
             var src = file.src;
+
+            if(src === 'watch')
+                return;
+
             // Use source for destination if no destionation is available
             // This is done here so globbing can use the original dest
             var dest = file.dest || src;
