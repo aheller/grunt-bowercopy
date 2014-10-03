@@ -207,8 +207,8 @@ module.exports = function (grunt) {
         }
 
         var files = [];
-        if(meta.copy.files) {
-            meta.copy.files.forEach(function (file) {
+        if(meta.copy) {
+            meta.copy.forEach(function (file) {
                 if (file.indexOf('*') !== -1)
                     files = files.concat(glob.sync(file, {cwd: src}));
                 else
