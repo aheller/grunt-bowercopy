@@ -313,14 +313,12 @@ module.exports = function (grunt) {
         files = convert(files);
 
         // Copy files
-        if(this.target !== 'watch') {
-            if (!copy(files, options, this.target)) {
-                fail.warn('Nothing was copied for the "' + this.target + '" target');
-            }
-
-            // Report if any dependencies have not been copied
-            ensure(files, options);
+        if (!copy(files, options, this.target)) {
+            fail.warn('Nothing was copied for the "' + this.target + '" target');
         }
+
+        // Report if any dependencies have not been copied
+        ensure(files, options);
     };
 
     grunt.registerMultiTask(
