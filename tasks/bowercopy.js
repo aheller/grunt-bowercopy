@@ -236,9 +236,6 @@ module.exports = function (grunt) {
         files.forEach(function(file) {
             var src = file.src;
 
-            if(src === 'watch')
-                return;
-
             // Use source for destination if no destionation is available
             // This is done here so globbing can use the original dest
             var dest = file.dest || src;
@@ -316,12 +313,14 @@ module.exports = function (grunt) {
         files = convert(files);
 
         // Copy files
-        if (!copy(files, options)) {
-            fail.warn('Nothing was copied for the "' + this.target + '" target');
-        }
+        if(this.target !== 'watch') {
+            if (!copy(files, options, this.target)) {
+                fail.warn('Nothing was copied for the "' + this.target + '" target');
+            }
 
-        // Report if any dependencies have not been copied
-        ensure(files, options);
+            // Report if any dependencies have not been copied
+            ensure(files, options);
+        }
     };
 
     grunt.registerMultiTask(
@@ -334,32 +333,35 @@ module.exports = function (grunt) {
             var self = this;
             var files = this.files;
 
-            // Options
-            var options = this.options({
-                srcPrefix: bower.config.directory,
-                destPrefix: '',
-                ignore: [],
-                report: true,
-                runBower: true,
-                clean: false,
-                copyOptions: {}
-            });
+            if(files && files.length > 0) {
 
-            // Back-compat. Non-camelcase
-            if (options.runBower || options.runbower) {
-                // Run `bower install`
-                var done = this.async();
-
-                bower.commands.install().on('log', function(result) {
-                    log.writeln(['bower', result.id.cyan, result.message].join(' '));
-                }).on('error', function(code) {
-                    fail.fatal(code);
-                }).on('end', function() {
-                    run.call(self, files, options);
-                    done();
+                // Options
+                var options = this.options({
+                    srcPrefix: bower.config.directory,
+                    destPrefix: '',
+                    ignore: [],
+                    report: true,
+                    runBower: true,
+                    clean: false,
+                    copyOptions: {}
                 });
-            } else {
-                run.call(self, files, options);
+
+                // Back-compat. Non-camelcase
+                if (options.runBower || options.runbower) {
+                    // Run `bower install`
+                    var done = this.async();
+
+                    bower.commands.install().on('log', function (result) {
+                        log.writeln(['bower', result.id.cyan, result.message].join(' '));
+                    }).on('error', function (code) {
+                        fail.fatal(code);
+                    }).on('end', function () {
+                        run.call(self, files, options);
+                        done();
+                    });
+                } else {
+                    run.call(self, files, options);
+                }
             }
         }
     );
