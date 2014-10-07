@@ -172,17 +172,6 @@ module.exports = function (grunt) {
             fail.fatal('No main property specified by ' + path.normalize(src.replace(options.srcPrefix, '')));
         }
         var files = typeof meta.main === 'string' ? [meta.main] : meta.main;
-        var copyIgnore = meta.copy && meta.copy.ignore ? meta.copy.ignore : [];
-        files = _.filter(files, function(file) {
-            if (copyIgnore.indexOf(file) > -1)
-                return false;
-            else
-                return file;
-        });
-
-        if(meta.copy && meta.copy.include)
-            files = files.concat(meta.copy.include);
-
         return files.map(function(source) {
             return {
                 src: path.join(src, source.replace('../','')),
@@ -198,10 +187,11 @@ module.exports = function (grunt) {
      * @param {string} src
      * @param {Object} options
      * @param {string} dest
+     * @param {string} srcPrefix
      * @returns {Array} Returns an array of file locations from the copy property
      */
-    function getPragmaCopyFiles(src, options, dest) {
-        var meta = grunt.file.readJSON(path.join(src, '.bower.json'));
+    function getPragmaCopyFiles(src, options, dest, srcPrefix) {
+        var meta = grunt.file.readJSON(path.join(src, 'bower.json'));
         if (!meta.copy) {
             fail.fatal('No copy property specified by ' + path.normalize(src.replace(options.srcPrefix, '')));
         }
@@ -218,6 +208,7 @@ module.exports = function (grunt) {
 
         return files.map(function(source) {
             return {
+                srcPrefix: srcPrefix,
                 src: path.join(src, source.replace('../','')),
                 dest: dest + (dest.charAt(dest - 1) !== '/' ? '/' : '') + (source.indexOf('./') === 0 ? source.substr(2) : source)
             };
@@ -233,6 +224,8 @@ module.exports = function (grunt) {
      */
     function copy(files, options) {
         var copied = false;
+
+
         files.forEach(function(file) {
             var src = file.src;
 
@@ -241,7 +234,12 @@ module.exports = function (grunt) {
             var dest = file.dest || src;
 
             // Add source prefix if not already added
-            if (src.indexOf(options.srcPrefix) !== 0) {
+            if (file.srcPrefix) {
+                if (src.indexOf(file.srcPrefix) !== 0) {
+                    src = path.join(file.srcPrefix, src);
+                }
+            }
+            else if (src.indexOf(options.srcPrefix) !== 0) {
                 src = path.join(options.srcPrefix, src);
             }
 
@@ -249,6 +247,7 @@ module.exports = function (grunt) {
             if (dest.indexOf(options.destPrefix) !== 0) {
                 dest = path.join(options.destPrefix, dest);
             }
+
 
             // Copy main files if :main pragma is specified
             var pragmaMain = rpragmaMain.exec(src);
@@ -260,7 +259,7 @@ module.exports = function (grunt) {
             // Copy specific files if :copy pragma is specified
             var pragmaCopy = rpragmaCopy.exec(src);
             if (pragmaCopy) {
-                copied = copy(getPragmaCopyFiles(pragmaCopy[1], options, dest), options) || copied;
+                copied = copy(getPragmaCopyFiles(pragmaCopy[1], options, dest, file.srcPrefix), options) || copied;
                 return;
             }
 
@@ -312,6 +311,47 @@ module.exports = function (grunt) {
         // Build the file list
         files = convert(files);
 
+        // Isolate installed web packages with module name matching mask
+        var installedWebPackages = [];
+        if(options.installedWebPackageMask) {
+            installedWebPackages = _.filter(allModules, function (module) {
+                if (module.indexOf(options.installedWebPackageMask) === 0)
+                    return true;
+                else
+                    return false;
+            });
+        }
+
+        // Append files from source web packages and remove package from installed web packages array (as source is ultimate truth)
+        if(options.sourceWebPackages) {
+            options.sourceWebPackages.forEach(function(sourceWebPackage) {
+                var i = installedWebPackages.indexOf(sourceWebPackage.name);
+                if(sourceWebPackage.name && i !== -1)
+                    installedWebPackages.splice(i, 1);
+
+                var sourceWebPackagePathMatch = /^(.+[\/\\])(.+?)[\/\\]?$/.exec(sourceWebPackage.path);
+                if (sourceWebPackagePathMatch) {
+                    files.push({
+                        srcPrefix: sourceWebPackagePathMatch[1],
+                        src: sourceWebPackagePathMatch[2] + ':copy',
+                        dest: options.destPrefix
+                    });
+                }
+
+//                files = files.concat(sourceWebPackage.copy.map(function(file) {
+//                    return path.join(sourceWebPackage.path, file);
+//                }));
+            });
+        }
+
+        // Append files from installed web packages with module name matching mask
+        installedWebPackages.forEach(function(installedWebPackage) {
+            files.push({
+                src: installedWebPackage+':copy',
+                dest: options.destPrefix
+            });
+        });
+
         // Copy files
         if (!copy(files, options, this.target)) {
             fail.warn('Nothing was copied for the "' + this.target + '" target');
@@ -331,36 +371,34 @@ module.exports = function (grunt) {
             var self = this;
             var files = this.files;
 
-            if(files && files.length > 0) {
+            // Options
+            var options = this.options({
+                srcPrefix: bower.config.directory,
+                destPrefix: '',
+                ignore: [],
+                report: true,
+                runBower: true,
+                clean: false,
+                copyOptions: {}
+            });
 
-                // Options
-                var options = this.options({
-                    srcPrefix: bower.config.directory,
-                    destPrefix: '',
-                    ignore: [],
-                    report: true,
-                    runBower: true,
-                    clean: false,
-                    copyOptions: {}
-                });
+            // Back-compat. Non-camelcase
+            if (options.runBower || options.runbower) {
+                // Run `bower install`
+                var done = this.async();
 
-                // Back-compat. Non-camelcase
-                if (options.runBower || options.runbower) {
-                    // Run `bower install`
-                    var done = this.async();
-
-                    bower.commands.install().on('log', function (result) {
-                        log.writeln(['bower', result.id.cyan, result.message].join(' '));
-                    }).on('error', function (code) {
-                        fail.fatal(code);
-                    }).on('end', function () {
-                        run.call(self, files, options);
-                        done();
-                    });
-                } else {
+                bower.commands.install().on('log', function (result) {
+                    log.writeln(['bower', result.id.cyan, result.message].join(' '));
+                }).on('error', function (code) {
+                    fail.fatal(code);
+                }).on('end', function () {
                     run.call(self, files, options);
-                }
+                    done();
+                });
+            } else {
+                run.call(self, files, options);
             }
+
         }
     );
 };
