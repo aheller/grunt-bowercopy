@@ -254,14 +254,14 @@ module.exports = function (grunt) {
             // Copy main files if :main pragma is specified
             var pragmaMain = rpragmaMain.exec(src);
             if (pragmaMain) {
-                copied = copy(getPragmaMainFiles(pragmaMain[1], options, dest, file.srcPrefix), options) || copied;
+                copied = copy(getPragmaMainFiles(pragmaMain[1], options, dest.replace(/\\/g, '/'), file.srcPrefix), options) || copied;
                 return;
             }
 
             // Copy specific files if :copy pragma is specified
             var pragmaCopy = rpragmaCopy.exec(src);
             if (pragmaCopy) {
-                copied = copy(getPragmaCopyFiles(pragmaCopy[1], options, dest, file.srcPrefix), options) || copied;
+                copied = copy(getPragmaCopyFiles(pragmaCopy[1], options, dest.replace(/\\/g, '/'), file.srcPrefix), options) || copied;
                 return;
             }
 
@@ -336,7 +336,7 @@ module.exports = function (grunt) {
                     files.push({
                         srcPrefix: sourceWebPackagePathMatch[1],
                         src: sourceWebPackagePathMatch[2] + ':main',
-                        dest: options.srcPrefix
+                        dest: options.srcPrefix+'/'+sourceWebPackage.name
                     });
                     files.push({
                         srcPrefix: sourceWebPackagePathMatch[1],
