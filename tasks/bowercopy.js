@@ -164,16 +164,18 @@ module.exports = function (grunt) {
      * @param {string} src
      * @param {Object} options
      * @param {string} dest
+     * @param {string} srcPrefix
      * @returns {Array} Returns an array of file locations from the main property
      */
-    function getPragmaMainFiles(src, options, dest) {
-        var meta = grunt.file.readJSON(path.join(src, '.bower.json'));
+    function getPragmaMainFiles(src, options, dest, srcPrefix) {
+        var meta = grunt.file.readJSON(path.join(src, 'bower.json'));
         if (!meta.main) {
             fail.fatal('No main property specified by ' + path.normalize(src.replace(options.srcPrefix, '')));
         }
         var files = typeof meta.main === 'string' ? [meta.main] : meta.main;
         return files.map(function(source) {
             return {
+                srcPrefix: srcPrefix,
                 src: path.join(src, source.replace('../','')),
                 dest: dest + (dest.charAt(dest - 1) !== '/' ? '/' : '') + (source.indexOf('./') === 0 ? source.substr(2) : source)
             };
@@ -252,7 +254,7 @@ module.exports = function (grunt) {
             // Copy main files if :main pragma is specified
             var pragmaMain = rpragmaMain.exec(src);
             if (pragmaMain) {
-                copied = copy(getPragmaMainFiles(pragmaMain[1], options, dest), options) || copied;
+                copied = copy(getPragmaMainFiles(pragmaMain[1], options, dest, file.srcPrefix), options) || copied;
                 return;
             }
 
@@ -333,6 +335,11 @@ module.exports = function (grunt) {
                 if (sourceWebPackagePathMatch) {
                     files.push({
                         srcPrefix: sourceWebPackagePathMatch[1],
+                        src: sourceWebPackagePathMatch[2] + ':main',
+                        dest: options.srcPrefix
+                    });
+                    files.push({
+                        srcPrefix: sourceWebPackagePathMatch[1],
                         src: sourceWebPackagePathMatch[2] + ':copy',
                         dest: options.destPrefix
                     });
@@ -351,6 +358,7 @@ module.exports = function (grunt) {
                 dest: options.destPrefix
             });
         });
+
 
         // Copy files
         if (!copy(files, options, this.target)) {
